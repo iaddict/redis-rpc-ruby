@@ -120,7 +120,10 @@ module RedisRpc
     end
 
     def run
-      loop{ run_one }
+      catch(:stop!) do
+        loop { run_one }
+        logger&.info("[#{Time.now}] #{self.class.name} : action=run stopped")
+      end
     end
 
     def run!
@@ -128,11 +131,20 @@ module RedisRpc
       run
     end
 
+    def stop!
+      client = Client.new(@redis_server.dup, @message_queue)
+      client.send(stop_message)
+    end
+
     def flush_queue!
       @redis_server.del @message_queue
     end
 
     private
+
+    def stop_message
+      @stop_message ||= "stop-#{@message_queue}"
+    end
 
     def run_one
       # request setup
@@ -153,29 +165,34 @@ module RedisRpc
           raise "Expired RPC call. timeout_at = #{rpc_request['timeout_at']}. Time.now = #{Time.now.to_i}"
         end
 
-        return_value = @local_object.send( function_call['name'].to_sym, *function_call['args'] )
-        rpc_response = {'return_value' => return_value}
-      rescue Exception => err
-        rpc_response = {'exception' => err.to_s, 'backtrace' => err.backtrace}
+        if stop_message == function_call['name']
+          send_response(response_queue, { 'return_value' => true })
+          throw :stop!
+        end
+
+        logger&.info("[#{Time.now}] #{self.class.name} : action=run_one rpc_call=#{@local_object.class.name}##{function_call['name']}(#{function_call['args']})")
+
+        return_value = @local_object.send(function_call['name'].to_sym, *function_call['args'])
+        rpc_response = { 'return_value' => return_value }
+      rescue StandardError => err
+        rpc_response = { 'exception' => err.to_s, 'backtrace' => err.backtrace }
       end
 
+      send_response(response_queue, rpc_response)
+    end
+
+    def send_response(response_queue, rpc_response)
       if @verbose
         p rpc_response
       end
 
-      @redis_server.multi do
-        @redis_server.rpush response_queue, rpc_raw_response
-        @redis_server.expire response_queue, 1
       # response transport
       rpc_raw_response = JSON.dump rpc_response
+      @redis_server.multi do |pipeline|
+        pipeline.rpush response_queue, rpc_raw_response
+        pipeline.expire response_queue, @response_expiry
       end
       true
-    end
-
-    def timeout
-      @timeout or
-        $REDISRPC_SERVER_TIMEOUT or
-      0
     end
   end
 end
