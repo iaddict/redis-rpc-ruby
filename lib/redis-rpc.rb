@@ -20,7 +20,7 @@ require 'redis'
 
 module RedisRpc
 
-  class RemoteException < Exception
+  class RemoteException < StandardError
     attr_reader :remote_backtrace
     def initialize(message, remote_backtrace)
       super(message)
@@ -28,10 +28,11 @@ module RedisRpc
     end
   end
 
-  class TimeoutException < Exception; end
+  class TimeoutException < StandardError; end
+
   class MalformedResponseException < RemoteException
     def initialize(response)
-      super "Malformed RPC Response message: #{response.inspect}"
+      super "Malformed RPC Response message: #{response.inspect}", []
     end
   end
   class MalformedRequestException < ArgumentError
