@@ -1,4 +1,5 @@
 require 'bundler'
+require 'logger'
 begin
   Bundler.require(:default,:development)
 rescue Bundler::BundlerError => e

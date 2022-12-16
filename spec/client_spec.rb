@@ -1,7 +1,7 @@
 require File.expand_path( '../spec_helper.rb', __FILE__ )
 
 describe RedisRpc::Client do
-  let(:client){ RedisRpc::Client.new( $REDIS, 'example', 1) }
+  let(:client){ RedisRpc::Client.new( $REDIS, 'example', timeout: 1) }
 
   context "terminated" do
     it "clear the backlog" do
