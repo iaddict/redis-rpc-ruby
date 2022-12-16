@@ -22,6 +22,7 @@ module RedisRpc
 
   class RemoteException < StandardError
     attr_reader :remote_backtrace
+
     def initialize(message, remote_backtrace)
       super(message)
       @remote_backtrace = remote_backtrace
@@ -35,6 +36,7 @@ module RedisRpc
       super "Malformed RPC Response message: #{response.inspect}", []
     end
   end
+
   class MalformedRequestException < ArgumentError
     def initialize(reason)
       super "Malformed RPC Request: #{reason.inspect}"
@@ -55,14 +57,15 @@ module RedisRpc
       Time.now.to_i + @timeout + 60
     end
 
-    def send( method_name, *args)
+    def send(method_name, *args)
       raise MalformedRequestException, 'block not allowed over RPC' if block_given?
 
       # request setup
-      function_call = {'name' => method_name.to_s, 'args' => args}
+      function_call = { 'name' => method_name.to_s, 'args' => args }
       response_queue = @message_queue + ':rpc:' + rand_string
       rpc_request = {
-        'function_call' => function_call, 'response_queue' => response_queue,
+        'function_call' => function_call,
+        'response_queue' => response_queue,
         'timeout_at' => get_timeout_at,
       }
 
@@ -70,31 +73,32 @@ module RedisRpc
 
       # transport
       @redis_server.rpush @message_queue, rpc_raw_request
-      message_queue, rpc_raw_response = @redis_server.blpop response_queue, timeout: @timeout
+      _message_queue, rpc_raw_response = @redis_server.blpop response_queue, timeout: @timeout
       raise TimeoutException if rpc_raw_response.nil?
 
       # response handling
       rpc_response = JSON.parse(rpc_raw_response)
       raise RemoteException.new(rpc_response['exception'], rpc_response['backtrace']) if rpc_response.has_key? 'exception'
       raise MalformedResponseException, rpc_response unless rpc_response.has_key? 'return_value'
-      return rpc_response['return_value']
 
+      # noinspection RubyUnnecessaryReturnStatement
+      return rpc_response['return_value']
     rescue TimeoutException, SignalException
       # stale request cleanup
       @redis_server.lrem @message_queue, 0, rpc_raw_request
-      raise $!
+      raise
     end
 
     alias :method_missing :send
 
-    def respond_to?( method_name )
-      send( :respond_to?, method_name )
+    def respond_to?(method_name)
+      send(:respond_to?, method_name)
     end
 
     private
 
-    def rand_string(size=8)
-      return rand(36**size).to_s(36).upcase.rjust(size,'0')
+    def rand_string(size = 8)
+      rand(36 ** size).to_s(36).upcase.rjust(size, '0')
     end
   end
 
@@ -148,7 +152,7 @@ module RedisRpc
 
     def run_one
       # request setup
-      message_queue, rpc_raw_request = @redis_server.blpop @message_queue, timeout: timeout
+      _message_queue, rpc_raw_request = @redis_server.blpop @message_queue, timeout: timeout
       return nil if rpc_raw_request.nil?
 
       rpc_request = JSON.parse(rpc_raw_request)
@@ -192,6 +196,7 @@ module RedisRpc
         pipeline.rpush response_queue, rpc_raw_response
         pipeline.expire response_queue, @response_expiry
       end
+
       true
     end
   end
