@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-require File.expand_path('../redis-rpc/version',__FILE__)
-require 'multi_json'
+require_relative 'redis-rpc/version'
+require 'json'
 
 require 'redis'
 
@@ -42,7 +42,7 @@ module RedisRpc
   end
 
   class Client
-    def initialize( redis_server, message_queue, timeout=0 )
+    def initialize(redis_server, message_queue, timeout: 0)
       @redis_server = redis_server
       @message_queue = message_queue
       @timeout = timeout
@@ -66,15 +66,15 @@ module RedisRpc
         'timeout_at' => get_timeout_at,
       }
 
-      rpc_raw_request = MultiJson.dump rpc_request
+      rpc_raw_request = JSON.dump rpc_request
 
       # transport
       @redis_server.rpush @message_queue, rpc_raw_request
-      message_queue, rpc_raw_response = @redis_server.blpop response_queue, @timeout
+      message_queue, rpc_raw_response = @redis_server.blpop response_queue, timeout: @timeout
       raise TimeoutException if rpc_raw_response.nil?
 
       # response handling
-      rpc_response = MultiJson.load rpc_raw_response
+      rpc_response = JSON.parse(rpc_raw_response)
       raise RemoteException.new(rpc_response['exception'], rpc_response['backtrace']) if rpc_response.has_key? 'exception'
       raise MalformedResponseException, rpc_response unless rpc_response.has_key? 'return_value'
       return rpc_response['return_value']
@@ -99,12 +99,24 @@ module RedisRpc
   end
 
   class Server
-    def initialize( redis_server, message_queue, local_object, timeout=nil, verbose: false)
+    attr_reader :timeout
+    attr_accessor :logger
+
+    # @param [Redis] redis_server
+    # @param [String] message_queue
+    # @param [Object] local_object
+    # @param [nil,Numeric] timeout
+    # @param [Integer] response_expiry
+    # @param [Boolean] verbose
+    # @param [nil,Logger] logger
+    def initialize(redis_server, message_queue, local_object, timeout: nil, response_expiry: 1, verbose: false, logger: nil)
       @redis_server = redis_server
       @message_queue = message_queue
       @local_object = local_object
-      @timeout = timeout
+      @timeout = timeout || 0
+      @response_expiry = response_expiry
       @verbose = verbose
+      @logger = logger
     end
 
     def run
@@ -124,9 +136,10 @@ module RedisRpc
 
     def run_one
       # request setup
-      message_queue, rpc_raw_request = @redis_server.blpop @message_queue, timeout
+      message_queue, rpc_raw_request = @redis_server.blpop @message_queue, timeout: timeout
       return nil if rpc_raw_request.nil?
-      rpc_request = MultiJson.load rpc_raw_request
+
+      rpc_request = JSON.parse(rpc_raw_request)
       response_queue = rpc_request['response_queue']
       function_call = rpc_request['function_call']
 
@@ -150,11 +163,11 @@ module RedisRpc
         p rpc_response
       end
 
-      # response tansport
-      rpc_raw_response = MultiJson.dump rpc_response
       @redis_server.multi do
         @redis_server.rpush response_queue, rpc_raw_response
         @redis_server.expire response_queue, 1
+      # response transport
+      rpc_raw_response = JSON.dump rpc_response
       end
       true
     end

@@ -37,7 +37,6 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   s.add_runtime_dependency 'redis'
-  s.add_runtime_dependency 'multi_json', '~>1.3'
 
   s.add_development_dependency 'bundler'
   s.add_development_dependency 'rake'

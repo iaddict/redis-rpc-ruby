@@ -7,10 +7,6 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 
-def MultiJson.default_adapter
-  :ok_json
-end
-
 
 RSpec.configure do |config|
   config.before :suite do
