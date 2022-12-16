@@ -29,7 +29,6 @@ Gem::Specification.new do |s|
     performance. Instead, RedisRpc has better programmer performance; it lets you
     get something working immediately.
   DESCRIPTION
-  s.has_rdoc = false
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
