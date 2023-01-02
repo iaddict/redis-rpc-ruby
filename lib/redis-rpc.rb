@@ -57,11 +57,11 @@ module RedisRpc
       Time.now.to_i + @timeout + 60
     end
 
-    def send(method_name, *args)
+    def send(method_name, *args, **kwargs)
       raise MalformedRequestException, 'block not allowed over RPC' if block_given?
 
       # request setup
-      function_call = { 'name' => method_name.to_s, 'args' => args }
+      function_call = { 'name' => method_name.to_s, 'args' => args, 'kwargs' => kwargs }
       response_queue = @message_queue + ':rpc:' + rand_string
       rpc_request = {
         'function_call' => function_call,
@@ -176,7 +176,8 @@ module RedisRpc
 
         logger&.info("[#{Time.now}] #{self.class.name} : action=run_one rpc_call=#{@local_object.class.name}##{function_call['name']}(#{function_call['args']})")
 
-        return_value = @local_object.send(function_call['name'].to_sym, *function_call['args'])
+        function_call['kwargs'].transform_keys!(&:to_sym) if function_call['kwargs']&.kind_of?(Hash)
+        return_value = @local_object.send(function_call['name'].to_sym, *function_call['args'], **function_call['kwargs'])
         rpc_response = { 'return_value' => return_value }
       rescue StandardError => err
         rpc_response = { 'exception' => err.to_s, 'backtrace' => err.backtrace }

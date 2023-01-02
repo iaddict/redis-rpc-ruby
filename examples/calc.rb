@@ -27,6 +27,6 @@ class Calculator
     end
 
     def val
-        return @acc
+      @acc
     end
 end
