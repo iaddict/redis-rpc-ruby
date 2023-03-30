@@ -69,7 +69,7 @@ module RedisRpc
         'timeout_at' => get_timeout_at,
       }
 
-      rpc_raw_request = JSON.dump rpc_request
+      rpc_raw_request = rpc_request.to_json
 
       # transport
       @redis_server.rpush @message_queue, rpc_raw_request
@@ -192,7 +192,7 @@ module RedisRpc
       end
 
       # response transport
-      rpc_raw_response = JSON.dump rpc_response
+      rpc_raw_response = rpc_response.to_json
       @redis_server.multi do |pipeline|
         pipeline.rpush response_queue, rpc_raw_response
         pipeline.expire response_queue, @response_expiry
