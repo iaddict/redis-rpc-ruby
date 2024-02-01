@@ -2,9 +2,9 @@
 require File.expand_path('../lib/redis-rpc/version', __FILE__)
 
 Gem::Specification.new do |s|
-  s.name = 'redis-rpc'
+  s.name = 'ia-redis-rpc'
   s.version = RedisRpc::VERSION
-  s.license = 'GPLv3'
+  s.license = 'GPL-3.0'
   s.authors = ['Phuong Nguyen', 'Nathan Farrington']
   s.email = ['nathan@nathanfarrington.com']
 
