@@ -9,6 +9,8 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 
+require_relative '../lib/redis-rpc'
+
 RSpec.configure do |config|
   config.before :suite do
     raise 'redis-server must be on your path to run this test' if `which redis-server`.empty?

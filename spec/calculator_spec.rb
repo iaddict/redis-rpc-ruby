@@ -48,6 +48,11 @@ describe Calculator do
       expect { calculator.a_missing_method }.to raise_error(RedisRpc::RemoteException)
     end
 
+    it 'should raise when method is not implemented by receiver' do
+      # noinspection RubyResolve
+      expect { calculator.send(:instance_eval, "puts :remote_exec") }.to raise_error(RedisRpc::RemoteException, "Forbidden RPC call 'instance_eval'")
+    end
+
     it 'should raise timeout when execution expires' do
       expect { calculator.send(:sleep, 3) }.to raise_error RedisRpc::TimeoutException
     end

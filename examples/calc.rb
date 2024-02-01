@@ -1,7 +1,7 @@
 class Calculator
     # A simple, mutable calculator used for testing.
     # referenced explicitly in ../spec/calculator.spec.rb
-    
+
     def initialize
         @acc = 0.0
     end
@@ -27,6 +27,11 @@ class Calculator
     end
 
     def val
-      @acc
+        @acc
+    end
+
+    def sleep(time)
+        # expose this method to test response timeouts
+        super
     end
 end

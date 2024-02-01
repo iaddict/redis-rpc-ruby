@@ -11,6 +11,7 @@ describe KwargsEcho do
     let(:hall) { KwargsEcho.new }
 
     it 'should echo' do
+      expect(hall.public_methods(true).include?(:echo)).to eq(true)
       expect(hall.echo(1, kwarg1: :kw1)).to be == {args1: 1, kwarg1: :kw1, kwarg2: :kwarg2}
     end
   end
@@ -24,6 +25,18 @@ describe KwargsEcho do
     end
     after(:each) { rpc_server_builder.call.stop! && @rpc_server.kill; rpc_server_builder.call.flush_queue! }
     let(:hall) { RedisRpc::Client.new($REDIS, 'hall', timeout: 2) }
+
+    it 'should respond_to?(:echo)' do
+      expect(hall.respond_to?(:echo)).to eq(true)
+    end
+
+    it 'should not respond_to?(:sleep)' do
+      expect(hall.respond_to?(:sleep)).to eq(false)
+    end
+
+    it 'should not respond_to?(:instance_eval)' do
+      expect(hall.respond_to?(:instance_eval)).to eq(false)
+    end
 
     it 'should echo' do
       expect(hall.echo(1, kwarg1: :kw1)).to be == { "args1" => 1, "kwarg1" => "kw1", "kwarg2" => "kwarg2" }

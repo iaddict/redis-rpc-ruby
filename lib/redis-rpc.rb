@@ -116,7 +116,12 @@ module RedisRpc
     def initialize(redis_server, message_queue, local_object, timeout: nil, response_expiry: 1, verbose: false, logger: nil)
       @redis_server = redis_server
       @message_queue = message_queue
-      @local_object = local_object
+      @local_object = local_object.tap do |o|
+        # Override #respond_to? so it only exposes methods which are directly defined by the receiver
+        def o.respond_to?(method_name)
+          self.public_methods(false).include?(method_name.to_sym)
+        end
+      end
       @timeout = timeout || 0
       @response_expiry = response_expiry
       @verbose = verbose
@@ -176,8 +181,13 @@ module RedisRpc
 
         logger&.info("[#{Time.now}] #{self.class.name} : action=run_one rpc_call=#{@local_object.class.name}##{function_call['name']}(#{function_call['args']})")
 
+        function_call_name = function_call['name'].to_sym
+        unless @local_object.public_methods(false).include?(function_call_name)
+          raise "Forbidden RPC call '#{function_call_name}'"
+        end
+
         function_call['kwargs'].transform_keys!(&:to_sym) if function_call['kwargs']&.kind_of?(Hash)
-        return_value = @local_object.send(function_call['name'].to_sym, *function_call['args'], **function_call['kwargs'])
+        return_value = @local_object.public_send(function_call_name, *function_call['args'], **function_call['kwargs'])
         rpc_response = { 'return_value' => return_value }
       rescue StandardError => err
         rpc_response = { 'exception' => err.to_s, 'backtrace' => err.backtrace }
